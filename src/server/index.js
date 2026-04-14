@@ -15,7 +15,11 @@ const getTodayDate = () => new Date().toISOString().slice(0, 10);
 // ✅ Serve static files from Vite build
 app.use(express.static(path.join(__dirname, "../../build")));
 
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-user-role']
+}));
 app.use(express.json());
 
 const seedData = {
