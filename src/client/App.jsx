@@ -99,6 +99,14 @@ export default function App() {
     reload
   } = useClinicData();
 
+  const [isCapacitor, setIsCapacitor] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window.Capacitor || window.capacitor)) {
+      setIsCapacitor(true);
+    }
+  }, []);
+
   const selectedDateDefault = new Date().toISOString().slice(0, 10);
   const [selectedDate, setSelectedDate] = useState(selectedDateDefault);
   const [slotsForDate, setSlotsForDate] = useState(availableSlots);
@@ -230,6 +238,10 @@ export default function App() {
     return <div className="app-shell loading-screen">{error}</div>;
   }
 
+  if (isCapacitor) {
+    return <PatientApp />;
+  }
+
   return (
     <div className="app-shell">
       <Routes>
@@ -263,6 +275,7 @@ export default function App() {
         />
         <Route path="/mobile" element={<PatientMobile apiUrl={API_URL} settings={settings} />} />
         <Route path="/patient" element={<PatientApp />} />
+        <Route path="/" element={<Navigate to="/admin" replace />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     </div>
