@@ -59,6 +59,11 @@ export function PatientApp() {
 
   const startScanner = async () => {
     try {
+      const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+      if (!available) {
+        await BarcodeScanner.installGoogleBarcodeScannerModule();
+      }
+
       const { cameras } = await BarcodeScanner.getCameras();
       if (!cameras || cameras.length === 0) {
         setError("Aucune caméra disponible");
@@ -81,7 +86,7 @@ export function PatientApp() {
       
     } catch (err) {
       console.error('Scanner error:', err);
-      setError("Impossible d'activer le scanner");
+      setError("Impossible d'activer le scanner. Verifiez les permissions.");
       setScanState("idle");
     }
   };
