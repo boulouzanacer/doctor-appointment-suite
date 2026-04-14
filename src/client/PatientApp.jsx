@@ -66,46 +66,55 @@ export function PatientApp() {
       const image = await CapacitorCamera.getPhoto({
         quality: 90,
         allowEditing: false,
-        resultType: "base64",
+        resultType: "uri",
         source: "prompt"
       });
 
-      if (!image || !image.base64String) {
+      if (!image || !image.webPath) {
         setProcessingQR(false);
         return;
       }
 
-      const imageDataUrl = `data:image/${image.format};base64,${image.base64String}`;
+      const response = await fetch(image.webPath);
+      const blob = await response.blob();
 
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, canvas.width, canvas.height);
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, canvas.width, canvas.height);
 
-        if (code && code.data) {
-          await loadPatient(code.data.trim());
-        } else {
-          setError("Aucun QR code trouvé. Essayez de prendre une photo plus nette.");
-        }
+          if (code && code.data) {
+            await loadPatient(code.data.trim());
+          } else {
+            setError("Aucun QR code trouvé. Essayez une photo plus nette.");
+          }
+          setProcessingQR(false);
+        };
+        img.onerror = () => {
+          setError("Erreur chargement image");
+          setProcessingQR(false);
+        };
+        img.src = e.target.result;
+      };
+      reader.onerror = () => {
+        setError("Erreur lecture image");
         setProcessingQR(false);
       };
-      img.onerror = () => {
-        setError("Erreur lors du chargement de l'image");
-        setProcessingQR(false);
-      };
-      img.src = imageDataUrl;
+      reader.readAsDataURL(blob);
 
     } catch (err) {
       console.error('QR scan error:', err);
       if (err.message && err.message.includes("cancelled")) {
         // User cancelled
       } else {
-        setError("Erreur lors du scan. Essayez avec une meilleure image.");
+        setError("Erreur lors du scan");
       }
       setProcessingQR(false);
     }
