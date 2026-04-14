@@ -12,6 +12,17 @@ const DATA_FILE = path.resolve(__dirname, "../../data/clinic-db.json");
 const DIST_DIR = path.resolve(__dirname, "../../dist");
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
+// ✅ Serve static files from Vite build
+app.use(express.static(path.join(__dirname, "../../dist")));
+
+// ✅ Handle React/Vite routing
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../../dist/index.html"));
+});
+
+app.use(cors());
+app.use(express.json());
+
 const seedData = {
   settings: {
     appointmentInterval: 30,
@@ -158,8 +169,6 @@ const getAvailableSlots = (db, date) => {
   return slots;
 };
 
-app.use(cors());
-app.use(express.json());
 if (fs.existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR));
 }
@@ -205,7 +214,6 @@ app.post("/api/patients", (req, res) => {
   };
   db.patients.unshift(patient);
   writeDb(db);
-  broadcast("refresh", buildResponse(db));
   res.status(201).json(patient);
 });
 
@@ -216,7 +224,6 @@ app.patch("/api/settings", (req, res) => {
     ...req.body
   };
   writeDb(db);
-  broadcast("refresh", buildResponse(db));
   res.json(db.settings);
 });
 
@@ -243,7 +250,6 @@ app.post("/api/users", (req, res) => {
 
   db.users.unshift(user);
   writeDb(db);
-  broadcast("refresh", buildResponse(db));
   const { password, ...safeUser } = user;
   return res.status(201).json(safeUser);
 });
@@ -270,7 +276,6 @@ app.patch("/api/users/:id", (req, res) => {
   }
 
   writeDb(db);
-  broadcast("refresh", buildResponse(db));
   const { password, ...safeUser } = db.users[userIndex];
   return res.json(safeUser);
 });
@@ -295,7 +300,6 @@ app.post("/api/appointments", (req, res) => {
 
   db.appointments.push(appointment);
   writeDb(db);
-  broadcast("refresh", buildResponse(db));
   return res.status(201).json(appointment);
 });
 
@@ -309,7 +313,6 @@ app.patch("/api/appointments/:id/status", (req, res) => {
 
   appointment.status = req.body.status;
   writeDb(db);
-  broadcast("refresh", buildResponse(db));
   return res.json(appointment);
 });
 
@@ -341,19 +344,6 @@ app.get("/api/patient/:patientId", (req, res) => {
     appointments,
     queue: todayAppointment ? todaysQueue : [],
     myPosition: todayAppointment?.position ?? null
-  });
-});
-
-app.get("/api/events", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  emitters.add(res);
-  res.write(`event: connected\ndata: ${JSON.stringify({ ok: true })}\n\n`);
-
-  req.on("close", () => {
-    emitters.delete(res);
   });
 });
 

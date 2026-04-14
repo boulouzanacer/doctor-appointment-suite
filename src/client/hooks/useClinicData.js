@@ -36,16 +36,9 @@ export function useClinicData() {
 
   useEffect(() => {
     load();
-    const events = new EventSource(`${API_URL}/events`);
-    events.addEventListener("refresh", (event) => {
-      const data = JSON.parse(event.data);
-      setState((current) => ({
-        ...current,
-        ...data
-      }));
-    });
-
-    return () => events.close();
+    // Refresh data every 5 seconds (polling) instead of SSE for better stability
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);

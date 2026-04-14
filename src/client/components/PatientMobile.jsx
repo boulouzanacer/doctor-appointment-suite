@@ -57,10 +57,9 @@ export function PatientMobile({ apiUrl, settings }) {
 
   useEffect(() => {
     if (!patientId) return;
-    const events = new EventSource(`${apiUrl}/events`);
-    const reload = () => loadPatient(patientId);
-    events.addEventListener("refresh", reload);
-    return () => events.close();
+    // Refresh patient profile every 5 seconds (polling)
+    const interval = setInterval(() => loadPatient(patientId), 5000);
+    return () => clearInterval(interval);
   }, [patientId]);
 
   useEffect(() => {
