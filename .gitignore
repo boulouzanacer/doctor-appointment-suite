@@ -1,0 +1,29 @@
+# Dependency directories
+node_modules/
+dist/
+
+# Capacitor
+android/
+ios/
+
+# Data
+data/*.json
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
