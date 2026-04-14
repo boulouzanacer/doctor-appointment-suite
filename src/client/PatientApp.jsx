@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Activity, Calendar, Clock, MapPin, Phone, QrCode, ShieldCheck, Users } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Activity, Calendar, Camera, Clock, MapPin, Phone, ShieldCheck, Users, X } from "lucide-react";
 
 const API_BASE = "https://doctor-appointment-suite.onrender.com/api";
 
@@ -10,28 +9,28 @@ function getTodayDate() {
 
 function StatusBadge({ status }) {
   const styles = {
-    waiting: { bg: "rgba(234, 179, 8, 0.15)", color: "#ca8a04", label: "En attente" },
-    confirmed: { bg: "rgba(59, 130, 246, 0.15)", color: "#2563eb", label: "Confirmé" },
-    treated: { bg: "rgba(34, 197, 94, 0.15)", color: "#16a34a", label: "Traité" },
-    cancelled: { bg: "rgba(239, 68, 68, 0.15)", color: "#dc2626", label: "Annulé" }
+    waiting: { bg: "#fef3c7", color: "#d97706", label: "En attente" },
+    confirmed: { bg: "#dbeafe", color: "#2563eb", label: "Confirmé" },
+    treated: { bg: "#dcfce7", color: "#16a34a", label: "Traité" },
+    cancelled: { bg: "#fee2e2", color: "#dc2626", label: "Annulé" }
   };
-  const s = styles[status] || { bg: "rgba(107, 114, 128, 0.15)", color: "#6b7280", label: status };
+  const s = styles[status] || { bg: "#f3f4f6", color: "#6b7280", label: status };
   return (
-    <span style={{ background: s.bg, color: s.color, padding: "4px 12px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: 600 }}>
+    <span style={{ background: s.bg, color: s.color, padding: "2px 8px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: 600 }}>
       {s.label}
     </span>
   );
 }
 
 export function PatientApp() {
-  const [searchParams] = useSearchParams();
-  const patientIdFromQR = searchParams.get("id") || "";
-
   const [inputId, setInputId] = useState("");
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState(null);
+  const [scanState, setScanState] = useState("idle");
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
 
   const loadPatient = async (id) => {
     if (!id) return;
@@ -42,8 +41,9 @@ export function PatientApp() {
       if (!res.ok) throw new Error("Patient non trouvé");
       const data = await res.json();
       setPatient(data);
+      setInputId("");
     } catch (err) {
-      setError("Identifiant invalide. Vérifiez votre ID patient.");
+      setError("ID invalide");
       setPatient(null);
     } finally {
       setLoading(false);
@@ -58,12 +58,50 @@ export function PatientApp() {
     } catch (_err) {}
   };
 
+  const startScanner = async () => {
+    if (!("BarcodeDetector" in window)) {
+      setError("Scanner non supporté");
+      return;
+    }
+    try {
+      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      streamRef.current = stream;
+      setScanState("active");
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      const loop = async () => {
+        if (!videoRef.current || scanState !== "active") return;
+        try {
+          const codes = await detector.detect(videoRef.current);
+          if (codes[0]?.rawValue) {
+            const value = codes[0].rawValue.trim();
+            stopScanner();
+            await loadPatient(value);
+            return;
+          }
+        } catch (_e) {}
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    } catch (_e) {
+      setScanState("error");
+    }
+  };
+
+  const stopScanner = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setScanState("idle");
+  };
+
   useEffect(() => {
     loadSettings();
-    if (patientIdFromQR) {
-      setInputId(patientIdFromQR);
-      loadPatient(patientIdFromQR);
-    }
+    return () => stopScanner();
   }, []);
 
   useEffect(() => {
@@ -78,46 +116,50 @@ export function PatientApp() {
   const myPosition = myQueue?.position;
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0f766e 0%, #115e59 50%, #134e4a 100%)", padding: "20px", fontFamily: "'Manrope', sans-serif" }}>
-      <div style={{ maxWidth: "480px", margin: "0 auto" }}>
-        {!patient ? (
-          <div style={{ background: "white", borderRadius: "24px", padding: "32px 24px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
-            <div style={{ textAlign: "center", marginBottom: "28px" }}>
-              <div style={{ width: "72px", height: "72px", background: "rgba(15, 118, 110, 0.1)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                <Activity size={36} style={{ color: "#0f766e" }} />
-              </div>
-              <h1 style={{ fontSize: "1.6rem", fontWeight: 700, margin: "0 0 8px", color: "#1f2937" }}>
-                {settings?.clinicName || "Cabinet OULD MATARI"}
-              </h1>
-              <p style={{ color: "#6b7280", fontSize: "0.9rem", margin: 0 }}>
-                Espace patient - Suivi de votre passage
-              </p>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      <div style={{ background: "linear-gradient(135deg, #0d9488, #0f766e)", padding: "20px 16px 60px", borderRadius: "0 0 24px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ width: "40px", height: "40px", background: "rgba(255,255,255,0.2)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Activity size={20} color="white" />
+            </div>
+            <div>
+              <h1 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "white" }}>{settings?.clinicName || "Cabinet OULD MATARI"}</h1>
+              <p style={{ margin: 0, fontSize: "0.7rem", color: "rgba(255,255,255,0.8)" }}>Suivi de votre passage</p>
+            </div>
+          </div>
+          {patient && (
+            <button onClick={() => setPatient(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "8px", padding: "8px", cursor: "pointer" }}>
+              <X size={18} color="white" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: "-40px", padding: "0 12px" }}>
+        {scanState === "active" ? (
+          <div style={{ background: "white", borderRadius: "16px", padding: "16px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", position: "relative" }}>
+            <video ref={videoRef} style={{ width: "100%", borderRadius: "12px", transform: "scaleX(-1)" }} playsInline muted />
+            <button onClick={stopScanner} style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <X size={18} color="white" />
+            </button>
+            <p style={{ textAlign: "center", margin: "12px 0 0", fontSize: "0.85rem", color: "#6b7280" }}>Scannez le QR code patient</p>
+          </div>
+        ) : !patient ? (
+          <div style={{ background: "white", borderRadius: "16px", padding: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#374151" }}>
+              <MapPin size={16} color="#0d9488" />
+              <span style={{ fontSize: "0.8rem" }}>{settings?.address}</span>
             </div>
 
-            {settings && (
-              <div style={{ background: "#f9fafb", borderRadius: "12px", padding: "16px", marginBottom: "24px", fontSize: "0.85rem", color: "#4b5563" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                  <MapPin size={16} style={{ color: "#0f766e" }} />
-                  <span>{settings.address}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Phone size={16} style={{ color: "#0f766e" }} />
-                  <span>{settings.phone}</span>
-                </div>
-              </div>
-            )}
-
-            <div style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#374151", marginBottom: "8px" }}>
-                Entrez votre ID patient
-              </label>
+            <div style={{ marginBottom: "16px" }}>
               <input
                 type="text"
                 value={inputId}
                 onChange={e => setInputId(e.target.value.toUpperCase())}
-                placeholder="Ex: PAT-1001"
-                style={{ width: "100%", padding: "14px 16px", border: "2px solid #e5e7eb", borderRadius: "12px", fontSize: "1rem", fontFamily: "inherit", boxSizing: "border-box", outline: "none", transition: "border-color 0.2s" }}
-                onFocus={e => e.target.style.borderColor = "#0f766e"}
+                placeholder="Entrez votre ID patient"
+                style={{ width: "100%", padding: "12px 14px", border: "2px solid #e5e7eb", borderRadius: "12px", fontSize: "0.95rem", boxSizing: "border-box", outline: "none" }}
+                onFocus={e => e.target.style.borderColor = "#0d9488"}
                 onBlur={e => e.target.style.borderColor = "#e5e7eb"}
               />
             </div>
@@ -125,103 +167,80 @@ export function PatientApp() {
             <button
               onClick={() => loadPatient(inputId.trim())}
               disabled={!inputId.trim() || loading}
-              style={{ width: "100%", padding: "16px", background: inputId.trim() && !loading ? "#0f766e" : "#9ca3af", color: "white", border: "none", borderRadius: "12px", fontSize: "1rem", fontWeight: 600, cursor: inputId.trim() && !loading ? "pointer" : "not-allowed", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", transition: "all 0.2s" }}
+              style={{ width: "100%", padding: "14px", background: inputId.trim() && !loading ? "#0d9488" : "#d1d5db", color: "white", border: "none", borderRadius: "12px", fontSize: "0.9rem", fontWeight: 600, cursor: inputId.trim() && !loading ? "pointer" : "not-allowed", marginBottom: "12px" }}
             >
-              {loading ? (
-                <span>Chargement...</span>
-              ) : (
-                <>
-                  <ShieldCheck size={20} />
-                  Accéder à mon espace
-                </>
-              )}
+              {loading ? "Chargement..." : "Accéder à mon espace"}
             </button>
 
-            {error && (
-              <div style={{ marginTop: "16px", padding: "12px 16px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "12px", color: "#dc2626", fontSize: "0.9rem", textAlign: "center" }}>
-                {error}
-              </div>
-            )}
+            <button
+              onClick={startScanner}
+              style={{ width: "100%", padding: "14px", background: "white", color: "#0d9488", border: "2px solid #0d9488", borderRadius: "12px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+            >
+              <Camera size={18} />
+              Scanner QR code
+            </button>
 
-            <p style={{ textAlign: "center", marginTop: "20px", fontSize: "0.8rem", color: "#9ca3af" }}>
-              Votre ID patient est disponible sur votre fiche ou QR code
-            </p>
+            {error && <p style={{ color: "#dc2626", fontSize: "0.85rem", textAlign: "center", margin: "12px 0 0" }}>{error}</p>}
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div style={{ background: "white", borderRadius: "24px", padding: "24px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "20px" }}>
-                <div style={{ width: "56px", height: "56px", background: "linear-gradient(135deg, #0f766e, #14b8a6)", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ color: "white", fontSize: "1.4rem", fontWeight: 700 }}>
-                    {patient.patient.firstName[0]}{patient.patient.lastName[0]}
-                  </span>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ background: "white", borderRadius: "16px", padding: "16px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
+                <div style={{ width: "48px", height: "48px", background: "linear-gradient(135deg, #0d9488, #14b8a6)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ color: "white", fontSize: "1.1rem", fontWeight: 700 }}>{patient.patient.firstName[0]}{patient.patient.lastName[0]}</span>
                 </div>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: "1.2rem", color: "#1f2937" }}>
-                    {patient.patient.firstName} {patient.patient.lastName}
-                  </h2>
-                  <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#6b7280" }}>
-                    ID: {patient.patient.id}
-                  </p>
+                  <h2 style={{ margin: 0, fontSize: "1.05rem", color: "#1f2937" }}>{patient.patient.firstName} {patient.patient.lastName}</h2>
+                  <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#6b7280" }}>{patient.patient.id}</p>
                 </div>
               </div>
 
               {todayAppt ? (
-                <div style={{ background: "linear-gradient(135deg, rgba(15, 118, 110, 0.1), rgba(20, 184, 166, 0.1))", borderRadius: "16px", padding: "20px", textAlign: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "12px", color: "#0f766e" }}>
-                    <Calendar size={20} />
-                    <span style={{ fontWeight: 600 }}>Rendez-vous d'aujourd'hui</span>
-                  </div>
-                  <div style={{ fontSize: "2rem", fontWeight: 800, color: "#1f2937", marginBottom: "8px" }}>
-                    {todayAppt.time}
+                <div style={{ background: "linear-gradient(135deg, #f0fdfa, #ecfdf5)", borderRadius: "12px", padding: "14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Calendar size={16} color="#0d9488" />
+                    <span style={{ fontSize: "0.85rem", color: "#374151" }}>{todayAppt.time}</span>
                   </div>
                   <StatusBadge status={todayAppt.status} />
                 </div>
               ) : (
-                <div style={{ background: "#f9fafb", borderRadius: "16px", padding: "20px", textAlign: "center", color: "#6b7280" }}>
-                  Aucun rendez-vous prévu aujourd'hui
-                </div>
+                <p style={{ color: "#9ca3af", fontSize: "0.85rem", textAlign: "center" }}>Aucun RDV aujourd'hui</p>
               )}
             </div>
 
             {myPosition && (
-              <div style={{ background: "white", borderRadius: "24px", padding: "28px 24px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", textAlign: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "12px", color: "#0f766e" }}>
-                  <Users size={24} />
-                  <span style={{ fontWeight: 600, fontSize: "1.1rem" }}>Votre position dans la file</span>
+              <div style={{ background: "linear-gradient(135deg, #0d9488, #0f766e)", borderRadius: "16px", padding: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", textAlign: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "8px", color: "rgba(255,255,255,0.9)" }}>
+                  <Users size={16} />
+                  <span style={{ fontSize: "0.8rem" }}>Votre position</span>
                 </div>
-                <div style={{ fontSize: "5rem", fontWeight: 800, color: "#0f766e", lineHeight: 1, marginBottom: "8px" }}>
+                <div style={{ fontSize: "3.5rem", fontWeight: 800, color: "white", lineHeight: 1 }}>
                   {myPosition}
                 </div>
-                <p style={{ color: "#6b7280", fontSize: "0.9rem", margin: 0 }}>
-                  {myPosition === 1 ? "Vous êtes le prochain !" : `Il y a ${myPosition - 1} patient(s) avant vous`}
+                <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.8rem", margin: "8px 0 0" }}>
+                  {myPosition === 1 ? "Prochain patient !" : `${myPosition - 1} avant vous`}
                 </p>
-                <div style={{ marginTop: "16px", padding: "12px", background: "#f0fdfa", borderRadius: "12px", fontSize: "0.85rem", color: "#0f766e" }}>
-                  ⏱️ Mise à jour automatique toutes les 5 secondes
-                </div>
               </div>
             )}
 
             {patient.queue && patient.queue.length > 0 && (
-              <div style={{ background: "white", borderRadius: "24px", padding: "24px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#1f2937" }}>
-                  <Clock size={20} />
-                  <span style={{ fontWeight: 600 }}>Classement du jour</span>
+              <div style={{ background: "white", borderRadius: "16px", padding: "16px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px", color: "#374151" }}>
+                  <Clock size={14} color="#0d9488" />
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>File d'attente</span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  {patient.queue.map((item, idx) => {
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {patient.queue.slice(0, 5).map((item, idx) => {
                     const isMe = item.patient.id === patient.patient.id;
                     return (
-                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", background: isMe ? "#f0fdfa" : "#f9fafb", borderRadius: "12px", border: isMe ? "2px solid #0f766e" : "none" }}>
-                        <div style={{ width: "32px", height: "32px", background: isMe ? "#0f766e" : "#e5e7eb", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: isMe ? "white" : "#6b7280", fontWeight: 700, fontSize: "0.85rem" }}>
+                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px", background: isMe ? "#f0fdfa" : "#f9fafb", borderRadius: "10px", border: isMe ? "2px solid #0d9488" : "none" }}>
+                        <div style={{ width: "26px", height: "26px", background: isMe ? "#0d9488" : "#e5e7eb", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: isMe ? "white" : "#6b7280", fontWeight: 700, fontSize: "0.75rem" }}>
                           {item.position || idx + 1}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, color: "#1f2937", fontSize: "0.95rem" }}>
-                            {isMe ? "Vous" : `${item.patient.firstName} ${item.patient.lastName}`}
-                          </div>
-                          <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>{item.time}</div>
+                          <div style={{ fontWeight: 500, color: "#1f2937", fontSize: "0.85rem" }}>{isMe ? "Vous" : item.patient.firstName}</div>
                         </div>
+                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{item.time}</span>
                         <StatusBadge status={item.status} />
                       </div>
                     );
@@ -231,38 +250,29 @@ export function PatientApp() {
             )}
 
             {patient.appointments && patient.appointments.length > 0 && (
-              <div style={{ background: "white", borderRadius: "24px", padding: "24px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#1f2937" }}>
-                  <Calendar size={20} />
-                  <span style={{ fontWeight: 600 }}>Mes rendez-vous</span>
+              <div style={{ background: "white", borderRadius: "16px", padding: "16px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px", color: "#374151" }}>
+                  <Calendar size={14} color="#0d9488" />
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Mes rendez-vous</span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {patient.appointments.map(apt => (
-                    <div key={apt.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px", background: "#f9fafb", borderRadius: "12px" }}>
-                      <div>
-                        <div style={{ fontWeight: 600, color: "#1f2937" }}>{apt.date}</div>
-                        <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>{apt.time}</div>
-                      </div>
+                    <div key={apt.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px", background: "#f9fafb", borderRadius: "8px" }}>
+                      <span style={{ fontSize: "0.85rem", color: "#374151" }}>{apt.date}</span>
+                      <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>{apt.time}</span>
                       <StatusBadge status={apt.status} />
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            <button
-              onClick={() => { setPatient(null); setInputId(""); }}
-              style={{ padding: "14px", background: "rgba(255,255,255,0.2)", color: "white", border: "2px solid rgba(255,255,255,0.3)", borderRadius: "12px", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Se déconnecter
-            </button>
           </div>
         )}
-
-        <p style={{ textAlign: "center", marginTop: "20px", fontSize: "0.75rem", color: "rgba(255,255,255,0.6)" }}>
-          © {new Date().getFullYear()} {settings?.clinicName || "Cabinet OULD MATARI"}
-        </p>
       </div>
+
+      <p style={{ textAlign: "center", marginTop: "24px", fontSize: "0.7rem", color: "#9ca3af", padding: "0 0 20px" }}>
+        © {new Date().getFullYear()} {settings?.clinicName || "Cabinet OULD MATARI"}
+      </p>
     </div>
   );
 }
