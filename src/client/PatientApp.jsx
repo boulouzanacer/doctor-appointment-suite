@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Activity, Calendar, Camera, Clock, MapPin, Users, X, Image } from "lucide-react";
 import { Camera as CapacitorCamera } from '@capacitor/camera';
-import { Html5Qrcode } from 'html5-qrcode';
+import jsQR from 'jsqr';
 
 const API_BASE = "https://doctor-appointment-suite.onrender.com/api";
 
@@ -75,22 +75,38 @@ export function PatientApp() {
         return;
       }
 
-      const qr = new Html5Qrcode("qr-decoder");
-      const imageData = `data:image/${image.format};base64,${image.base64String}`;
-      
-      const result = await qr.scanBase64(imageData);
-      await loadPatient(result.trim());
-      
+      const imageDataUrl = `data:image/${image.format};base64,${image.base64String}`;
+
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+        if (code && code.data) {
+          await loadPatient(code.data.trim());
+        } else {
+          setError("Aucun QR code trouvé. Essayez de prendre une photo plus nette.");
+        }
+        setProcessingQR(false);
+      };
+      img.onerror = () => {
+        setError("Erreur lors du chargement de l'image");
+        setProcessingQR(false);
+      };
+      img.src = imageDataUrl;
+
     } catch (err) {
       console.error('QR scan error:', err);
-      if (err.message && err.message.includes("No QR code found")) {
-        setError("Aucun QR code trouvé dans l'image");
-      } else if (err.message && err.message.includes("cancelled")) {
-        // User cancelled, do nothing
+      if (err.message && err.message.includes("cancelled")) {
+        // User cancelled
       } else {
         setError("Erreur lors du scan. Essayez avec une meilleure image.");
       }
-    } finally {
       setProcessingQR(false);
     }
   };
@@ -112,8 +128,6 @@ export function PatientApp() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      <div id="qr-decoder" style={{ display: "none" }}></div>
-      
       <div style={{ background: "linear-gradient(135deg, #0d9488, #0f766e)", padding: "20px 16px 60px", borderRadius: "0 0 24px 24px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
