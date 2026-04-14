@@ -3,6 +3,7 @@ import { LayoutDashboard, LockKeyhole, ShieldCheck, Smartphone } from "lucide-re
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { PatientMobile } from "./components/PatientMobile";
+import { PatientApp } from "./PatientApp";
 import { useClinicData } from "./hooks/useClinicData";
 
 function LoginScreen({ onLogin, loginError }) {
@@ -261,6 +262,7 @@ export default function App() {
           }
         />
         <Route path="/mobile" element={<PatientMobile apiUrl={API_URL} settings={settings} />} />
+        <Route path="/patient" element={<PatientApp />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     </div>
