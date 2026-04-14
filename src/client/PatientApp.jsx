@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, Calendar, Camera, Clock, MapPin, Users, X } from "lucide-react";
+import { Activity, Calendar, Camera, Clock, MapPin, Users, X, Image } from "lucide-react";
+import { Camera as CapacitorCamera } from '@capacitor/camera';
 import { Html5Qrcode } from 'html5-qrcode';
 
 const API_BASE = "https://doctor-appointment-suite.onrender.com/api";
@@ -29,9 +30,7 @@ export function PatientApp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState(null);
-  const [scanState, setScanState] = useState("idle");
-  const scannerRef = useRef(null);
-  const html5QrRef = useRef(null);
+  const [processingQR, setProcessingQR] = useState(false);
 
   const loadPatient = async (id) => {
     if (!id) return;
@@ -59,56 +58,45 @@ export function PatientApp() {
     } catch (_err) {}
   };
 
-  const startScanner = async () => {
+  const scanQRCode = async () => {
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setError("Camera non disponible sur cet appareil");
+      setError("");
+      setProcessingQR(true);
+
+      const image = await CapacitorCamera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: "base64",
+        source: "prompt"
+      });
+
+      if (!image || !image.base64String) {
+        setProcessingQR(false);
         return;
       }
 
-      setScanState("active");
-
-      html5QrRef.current = new Html5Qrcode("qr-reader");
+      const qr = new Html5Qrcode("qr-decoder");
+      const imageData = `data:image/${image.format};base64,${image.base64String}`;
       
-      await html5QrRef.current.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 }
-        },
-        async (decodedText) => {
-          try {
-            await html5QrRef.current.stop();
-            setScanState("idle");
-            await loadPatient(decodedText.trim());
-          } catch (_err) {}
-        },
-        () => {}
-      );
+      const result = await qr.scanBase64(imageData);
+      await loadPatient(result.trim());
       
     } catch (err) {
-      console.error('Scanner error:', err);
-      setError("Impossible d'activer le scanner. Verifiez les permissions.");
-      setScanState("idle");
-    }
-  };
-
-  const stopScanner = async () => {
-    try {
-      if (html5QrRef.current && html5QrRef.current.isScanning) {
-        await html5QrRef.current.stop();
+      console.error('QR scan error:', err);
+      if (err.message && err.message.includes("No QR code found")) {
+        setError("Aucun QR code trouvé dans l'image");
+      } else if (err.message && err.message.includes("cancelled")) {
+        // User cancelled, do nothing
+      } else {
+        setError("Erreur lors du scan. Essayez avec une meilleure image.");
       }
-    } catch (_err) {}
-    setScanState("idle");
+    } finally {
+      setProcessingQR(false);
+    }
   };
 
   useEffect(() => {
     loadSettings();
-    return () => {
-      if (scanState === "active") {
-        stopScanner();
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -124,6 +112,8 @@ export function PatientApp() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      <div id="qr-decoder" style={{ display: "none" }}></div>
+      
       <div style={{ background: "linear-gradient(135deg, #0d9488, #0f766e)", padding: "20px 16px 60px", borderRadius: "0 0 24px 24px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -144,17 +134,7 @@ export function PatientApp() {
       </div>
 
       <div style={{ marginTop: "-40px", padding: "0 12px" }}>
-        {scanState === "active" ? (
-          <div style={{ background: "white", borderRadius: "16px", padding: "16px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-            <div id="qr-reader" ref={scannerRef} style={{ width: "100%", borderRadius: "12px", overflow: "hidden" }}></div>
-            <button
-              onClick={stopScanner}
-              style={{ width: "100%", marginTop: "12px", padding: "12px", background: "#dc2626", color: "white", border: "none", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer" }}
-            >
-              Annuler
-            </button>
-          </div>
-        ) : !patient ? (
+        {!patient ? (
           <div style={{ background: "white", borderRadius: "16px", padding: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#374151" }}>
               <MapPin size={16} color="#0d9488" />
@@ -182,11 +162,21 @@ export function PatientApp() {
             </button>
 
             <button
-              onClick={startScanner}
-              style={{ width: "100%", padding: "14px", background: "white", color: "#0d9488", border: "2px solid #0d9488", borderRadius: "12px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+              onClick={scanQRCode}
+              disabled={processingQR}
+              style={{ width: "100%", padding: "14px", background: processingQR ? "#d1d5db" : "white", color: "#0d9488", border: "2px solid #0d9488", borderRadius: "12px", fontSize: "0.9rem", fontWeight: 600, cursor: processingQR ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
             >
-              <Camera size={18} />
-              Scanner QR code
+              {processingQR ? (
+                <>
+                  <div style={{ width: "18px", height: "18px", border: "2px solid #0d9488", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+                  Traitement...
+                </>
+              ) : (
+                <>
+                  <Image size={18} />
+                  Scanner QR code
+                </>
+              )}
             </button>
 
             {error && <p style={{ color: "#dc2626", fontSize: "0.85rem", textAlign: "center", margin: "12px 0 0" }}>{error}</p>}
@@ -278,6 +268,12 @@ export function PatientApp() {
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
 
       <p style={{ textAlign: "center", marginTop: "24px", fontSize: "0.7rem", color: "#9ca3af", padding: "0 0 20px" }}>
         © {new Date().getFullYear()} {settings?.clinicName || "Cabinet OULD MATARI"}
