@@ -13,7 +13,7 @@ const DIST_DIR = path.resolve(__dirname, "../../dist");
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
 // ✅ Serve static files from Vite build
-app.use(express.static(path.join(__dirname, "../../build")));
+app.use(express.static(path.join(__dirname, "../../dist")));
 
 app.use(cors({
   origin: '*',
