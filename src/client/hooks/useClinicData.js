@@ -32,8 +32,19 @@ export function useClinicData() {
   });
 
   const load = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
     try {
-      const response = await fetch(`${API_URL}/bootstrap`);
+      const response = await fetch(`${API_URL}/bootstrap`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+      
       const data = await response.json();
       setState((current) => ({
         ...current,
@@ -42,10 +53,14 @@ export function useClinicData() {
         error: ""
       }));
     } catch (error) {
+      clearTimeout(timeoutId);
+      const errorMessage = error.name === 'AbortError' 
+        ? "Le serveur met trop de temps a responder. Veuillez verifier votre connexion."
+        : "Impossible de charger les donnees.";
       setState((current) => ({
         ...current,
         loading: false,
-        error: "Impossible de charger les donnees."
+        error: errorMessage
       }));
     }
   };
