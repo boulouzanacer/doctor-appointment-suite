@@ -15,11 +15,6 @@ const getTodayDate = () => new Date().toISOString().slice(0, 10);
 // ✅ Serve static files from Vite build
 app.use(express.static(path.join(__dirname, "../../build")));
 
-// ✅ Handle React/Vite routing
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../../build/index.html"));
-});
-
 app.use(cors());
 app.use(express.json());
 
@@ -227,6 +222,10 @@ app.patch("/api/settings", (req, res) => {
   res.json(db.settings);
 });
 
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API works" });
+});
+
 app.post("/api/users", (req, res) => {
   const db = readDb();
   const requesterRole = req.headers["x-user-role"];
@@ -352,6 +351,11 @@ if (fs.existsSync(DIST_DIR)) {
     res.sendFile(path.join(DIST_DIR, "index.html"));
   });
 }
+
+// ✅ Handle React/Vite routing
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../../build/index.html"));
+});
 
 app.listen(PORT, () => {
   ensureDataFile();
