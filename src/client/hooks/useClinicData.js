@@ -1,8 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  (window.location.port === "5173" ? "http://localhost:3001/api" : `${window.location.origin}/api`);
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  if (typeof window !== 'undefined') {
+    if (window.location.port === "5173") {
+      return "http://localhost:3001/api";
+    }
+    if (window.location.protocol === 'capacitor:' || window.location.protocol === 'app:') {
+      return "https://doctor-appointment-suite.onrender.com/api";
+    }
+    return `${window.location.origin}/api`;
+  }
+  
+  return "https://doctor-appointment-suite.onrender.com/api";
+};
+
+const API_URL = getApiBaseUrl();
 
 export function useClinicData() {
   const [state, setState] = useState({
