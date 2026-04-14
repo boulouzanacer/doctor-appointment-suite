@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Activity, Calendar, Camera, Clock, MapPin, Users, X } from "lucide-react";
-import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
+import { Html5Qrcode } from 'html5-qrcode';
 
 const API_BASE = "https://doctor-appointment-suite.onrender.com/api";
 
@@ -30,6 +30,8 @@ export function PatientApp() {
   const [error, setError] = useState("");
   const [settings, setSettings] = useState(null);
   const [scanState, setScanState] = useState("idle");
+  const scannerRef = useRef(null);
+  const html5QrRef = useRef(null);
 
   const loadPatient = async (id) => {
     if (!id) return;
@@ -59,30 +61,30 @@ export function PatientApp() {
 
   const startScanner = async () => {
     try {
-      const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-      if (!available) {
-        await BarcodeScanner.installGoogleBarcodeScannerModule();
-      }
-
-      const { cameras } = await BarcodeScanner.getCameras();
-      if (!cameras || cameras.length === 0) {
-        setError("Aucune caméra disponible");
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError("Camera non disponible sur cet appareil");
         return;
       }
 
-      const backCamera = cameras.find(c => c.position === 'back') || cameras[0];
-      
       setScanState("active");
-      
-      const listener = await BarcodeScanner.addListener('barcodeScanned', async (result) => {
-        if (result.barcode && result.barcode.rawValue) {
-          BarcodeScanner.removeAllListeners();
-          setScanState("idle");
-          await loadPatient(result.barcode.rawValue.trim());
-        }
-      });
 
-      await BarcodeScanner.startScanning({ camera: backCamera });
+      html5QrRef.current = new Html5Qrcode("qr-reader");
+      
+      await html5QrRef.current.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
+        async (decodedText) => {
+          try {
+            await html5QrRef.current.stop();
+            setScanState("idle");
+            await loadPatient(decodedText.trim());
+          } catch (_err) {}
+        },
+        () => {}
+      );
       
     } catch (err) {
       console.error('Scanner error:', err);
@@ -93,8 +95,9 @@ export function PatientApp() {
 
   const stopScanner = async () => {
     try {
-      await BarcodeScanner.stopScanning();
-      await BarcodeScanner.removeAllListeners();
+      if (html5QrRef.current && html5QrRef.current.isScanning) {
+        await html5QrRef.current.stop();
+      }
     } catch (_err) {}
     setScanState("idle");
   };
@@ -142,14 +145,11 @@ export function PatientApp() {
 
       <div style={{ marginTop: "-40px", padding: "0 12px" }}>
         {scanState === "active" ? (
-          <div style={{ background: "white", borderRadius: "16px", padding: "16px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", textAlign: "center" }}>
-            <div style={{ background: "#000", borderRadius: "12px", padding: "20px", marginBottom: "12px" }}>
-              <p style={{ color: "#fff", fontSize: "0.9rem", margin: 0 }}>Scanner actif...</p>
-              <p style={{ color: "#aaa", fontSize: "0.75rem", margin: "8px 0 0" }}>Pointez vers le QR code patient</p>
-            </div>
+          <div style={{ background: "white", borderRadius: "16px", padding: "16px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+            <div id="qr-reader" ref={scannerRef} style={{ width: "100%", borderRadius: "12px", overflow: "hidden" }}></div>
             <button
               onClick={stopScanner}
-              style={{ padding: "12px 24px", background: "#dc2626", color: "white", border: "none", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer" }}
+              style={{ width: "100%", marginTop: "12px", padding: "12px", background: "#dc2626", color: "white", border: "none", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer" }}
             >
               Annuler
             </button>
