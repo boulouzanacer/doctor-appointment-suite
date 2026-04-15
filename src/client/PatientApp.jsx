@@ -31,6 +31,7 @@ export function PatientApp() {
   const [error, setError] = useState("");
   const [settings, setSettings] = useState(null);
   const [processingQR, setProcessingQR] = useState(false);
+  const fileInputRef = useRef(null);
 
   const loadPatient = async (id) => {
     if (!id) return;
@@ -58,26 +59,14 @@ export function PatientApp() {
     } catch (_err) {}
   };
 
-  const scanQRCode = async () => {
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setError("");
+    setProcessingQR(true);
+
     try {
-      setError("");
-      setProcessingQR(true);
-
-      const image = await CapacitorCamera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: "uri",
-        source: "prompt"
-      });
-
-      if (!image || !image.webPath) {
-        setProcessingQR(false);
-        return;
-      }
-
-      const response = await fetch(image.webPath);
-      const blob = await response.blob();
-
       const reader = new FileReader();
       reader.onload = async (e) => {
         const img = new Image();
@@ -93,7 +82,7 @@ export function PatientApp() {
           if (code && code.data) {
             await loadPatient(code.data.trim());
           } else {
-            setError("Aucun QR code trouvé. Essayez une photo plus nette.");
+            setError("Aucun QR code trouvé. Essayez de prendre une photo plus proche et nette.");
           }
           setProcessingQR(false);
         };
@@ -104,20 +93,22 @@ export function PatientApp() {
         img.src = e.target.result;
       };
       reader.onerror = () => {
-        setError("Erreur lecture image");
+        setError("Erreur lecture fichier");
         setProcessingQR(false);
       };
-      reader.readAsDataURL(blob);
-
+      reader.readAsDataURL(file);
     } catch (err) {
-      console.error('QR scan error:', err);
-      if (err.message && err.message.includes("cancelled")) {
-        // User cancelled
-      } else {
-        setError("Erreur lors du scan");
-      }
+      console.error('QR processing error:', err);
+      setError("Erreur lors du traitement du QR code.");
       setProcessingQR(false);
     }
+    
+    // Clear input so same file can be selected again
+    event.target.value = "";
+  };
+
+  const triggerCamera = () => {
+    fileInputRef.current?.click();
   };
 
   useEffect(() => {
@@ -185,10 +176,18 @@ export function PatientApp() {
             </button>
 
             <button
-              onClick={scanQRCode}
+              onClick={triggerCamera}
               disabled={processingQR}
               style={{ width: "100%", padding: "14px", background: processingQR ? "#d1d5db" : "white", color: "#0d9488", border: "2px solid #0d9488", borderRadius: "12px", fontSize: "0.9rem", fontWeight: 600, cursor: processingQR ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
             >
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+              />
               {processingQR ? (
                 <>
                   <div style={{ width: "18px", height: "18px", border: "2px solid #0d9488", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>

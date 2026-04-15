@@ -238,10 +238,6 @@ export default function App() {
     return <div className="app-shell loading-screen">{error}</div>;
   }
 
-  if (isCapacitor) {
-    return <PatientApp />;
-  }
-
   return (
     <div className="app-shell">
       <Routes>
@@ -273,10 +269,9 @@ export default function App() {
             )
           }
         />
-        <Route path="/mobile" element={<PatientMobile apiUrl={API_URL} settings={settings} />} />
         <Route path="/patient" element={<PatientApp />} />
-        <Route path="/" element={<Navigate to="/admin" replace />} />
-        <Route path="*" element={<Navigate to="/admin" replace />} />
+        <Route path="/" element={<Navigate to={isCapacitor ? "/patient" : "/admin"} replace />} />
+        <Route path="*" element={<Navigate to={isCapacitor ? "/patient" : "/admin"} replace />} />
       </Routes>
     </div>
   );
