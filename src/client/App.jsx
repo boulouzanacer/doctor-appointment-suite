@@ -270,8 +270,8 @@ export default function App() {
           }
         />
         <Route path="/patient" element={<PatientApp />} />
-        <Route path="/" element={<Navigate to={isCapacitor ? "/patient" : "/admin"} replace />} />
-        <Route path="*" element={<Navigate to={isCapacitor ? "/patient" : "/admin"} replace />} />
+        <Route path="/" element={<Navigate to={currentUser ? "/admin" : "/patient"} replace />} />
+        <Route path="*" element={<Navigate to={currentUser ? "/admin" : "/patient"} replace />} />
       </Routes>
     </div>
   );
