@@ -5,6 +5,7 @@ import { AdminDashboard } from "./components/AdminDashboard";
 import { PatientMobile } from "./components/PatientMobile";
 import { PatientApp } from "./PatientApp";
 import { useClinicData } from "./hooks/useClinicData";
+import { syncAppointmentToFirebase, updateFirebaseStatus } from "./firebase";
 
 function LoginScreen({ onLogin, loginError }) {
   const [credentials, setCredentials] = useState({
@@ -177,6 +178,13 @@ export default function App() {
 
     if (!response.ok) {
       alert("Le creneau choisi est deja reserve.");
+      return;
+    }
+
+    const data = await response.json();
+    // Sync to Firebase for real-time Flutter updates
+    if (data.appointment && data.patient) {
+      await syncAppointmentToFirebase(data.appointment, data.patient);
     }
 
     await refreshSlots(selectedDate);
@@ -222,11 +230,19 @@ export default function App() {
   };
 
   const markStatus = async (appointmentId, status) => {
+    // 1. Update backend (local JSON)
     await fetch(`${API_URL}/appointments/${appointmentId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status })
     });
+
+    // 2. Find patientId to sync to Firebase
+    const appt = appointments.find(a => a.id === appointmentId);
+    if (appt) {
+      await updateFirebaseStatus(appointmentId, appt.patientId, status);
+    }
+
     await reload();
   };
 

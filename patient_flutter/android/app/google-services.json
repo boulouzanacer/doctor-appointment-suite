@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "342025821668",
+    "project_id": "doctor-appointment-suite",
+    "storage_bucket": "doctor-appointment-suite.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:342025821668:android:f7916bba9a82e0732b7bf1",
+        "android_client_info": {
+          "package_name": "com.ouldmatari.patient.patient_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDO6oU7hdjah2KvO1DbjEnYgmDwYWKk_6M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

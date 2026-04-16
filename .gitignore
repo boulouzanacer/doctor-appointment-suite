@@ -3,8 +3,8 @@ node_modules/
 dist/
 
 # Capacitor
-android/
-ios/
+/android/
+/ios/
 
 # Data
 data/*.json

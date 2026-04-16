@@ -301,9 +301,11 @@ app.post("/api/appointments", (req, res) => {
     status: "confirmed"
   };
 
+  const patient = db.patients.find(p => p.id === patientId);
+
   db.appointments.push(appointment);
   writeDb(db);
-  return res.status(201).json(appointment);
+  return res.status(201).json({ appointment, patient });
 });
 
 app.patch("/api/appointments/:id/status", (req, res) => {
