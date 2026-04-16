@@ -9,17 +9,39 @@ import 'package:intl/intl.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase with the same config as the web app
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: "AIzaSyCTvGSJwG06gnKK-d9sgtYX8oGgxCWhfqc",
-      authDomain: "doctor-appointment-suite.firebaseapp.com",
-      projectId: "doctor-appointment-suite",
-      storageBucket: "doctor-appointment-suite.firebasestorage.app",
-      messagingSenderId: "342025821668",
-      appId: "1:342025821668:android:e2efc42bc75137842b7bf1" // Note: Replaced web appId with android one (usually similar structure)
-    ),
-  );
+  debugPrint("--- Starting App Initialization ---");
+  
+  try {
+    // If you have google-services.json in android/app/, 
+    // simply calling initializeApp() is usually enough.
+    await Firebase.initializeApp().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        debugPrint("Firebase initialization timed out!");
+        return Firebase.app(); // Try to return the default app anyway
+      },
+    );
+    debugPrint("Firebase initialized successfully");
+  } catch (e) {
+    debugPrint("Firebase initialization error: $e");
+    // Fallback to manual options if automatic detection fails
+    try {
+      debugPrint("Attempting manual Firebase initialization...");
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyCTvGSJwG06gnKK-d9sgtYX8oGgxCWhfqc",
+          authDomain: "doctor-appointment-suite.firebaseapp.com",
+          projectId: "doctor-appointment-suite",
+          storageBucket: "doctor-appointment-suite.firebasestorage.app",
+          messagingSenderId: "342025821668",
+          appId: "1:342025821668:android:e2efc42bc75137842b7bf1"
+        ),
+      );
+      debugPrint("Manual Firebase initialization successful");
+    } catch (e2) {
+      debugPrint("Manual Firebase initialization failed: $e2");
+    }
+  }
   
   runApp(const PatientApp());
 }
