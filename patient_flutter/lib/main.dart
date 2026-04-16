@@ -285,10 +285,12 @@ class _PatientStatusViewState extends State<PatientStatusView> {
             .orderBy('time')
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError)
+          if (snapshot.hasError) {
             return Center(child: Text('Erreur: ${snapshot.error}'));
-          if (!snapshot.hasData)
+          }
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           final queueDocs = snapshot.data!.docs;
           int myIndex = -1;
