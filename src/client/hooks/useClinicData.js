@@ -97,6 +97,22 @@ export function useClinicData() {
     API_URL,
     ...state,
     queueToday,
-    reload: load
+    reload: load,
+    updateInterval: async (interval) => {
+      await fetch(`${API_URL}/settings/interval`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interval })
+      });
+      await load();
+    },
+    updateVisibility: async (showPatientNames) => {
+      await fetch(`${API_URL}/settings/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ showPatientNames })
+      });
+      await load();
+    }
   };
 }

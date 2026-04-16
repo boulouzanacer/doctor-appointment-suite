@@ -27,7 +27,8 @@ const seedData = {
     appointmentInterval: 30,
     clinicName: "Cabinet OULD MATARI",
     address: "LOTISSEMENT HARKAT, BT A, REZ DE CHAUSSÉÉ, BOUIRA",
-    phone: "0555021297 / 0794084841 / 0553859803"
+    phone: "0555021297 / 0794084841 / 0553859803",
+    showPatientNames: true
   },
   users: [
     {
@@ -226,6 +227,20 @@ app.patch("/api/settings", (req, res) => {
   res.json(db.settings);
 });
 
+app.patch("/api/settings/interval", (req, res) => {
+  const db = readDb();
+  db.settings.appointmentInterval = Number(req.body.interval);
+  writeDb(db);
+  return res.json(db.settings);
+});
+
+app.patch("/api/settings/visibility", (req, res) => {
+  const db = readDb();
+  db.settings.showPatientNames = !!req.body.showPatientNames;
+  writeDb(db);
+  return res.json(db.settings);
+});
+
 app.get("/api/test", (req, res) => {
   res.json({ message: "API works" });
 });
@@ -320,43 +335,6 @@ app.patch("/api/appointments/:id/status", (req, res) => {
   writeDb(db);
   return res.json(appointment);
 });
-
-app.get("/api/patient/:patientId", (req, res) => {
-  const db = readDb();
-  const patient = db.patients.find((item) => item.id === req.params.patientId);
-
-  if (!patient) {
-    return res.status(404).json({ message: "Patient introuvable." });
-  }
-
-  const appointments = db.appointments
-    .filter((item) => item.patientId === patient.id)
-    .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
-
-  const todaysQueue = db.appointments
-    .filter((item) => item.date === getTodayDate() && item.status !== "treated")
-    .sort((a, b) => a.time.localeCompare(b.time))
-    .map((item, index) => ({
-      ...item,
-      position: index + 1,
-      patient: db.patients.find((patientItem) => patientItem.id === item.patientId)
-    }));
-
-  const todayAppointment = todaysQueue.find((item) => item.patientId === patient.id);
-
-  return res.json({
-    patient,
-    appointments,
-    queue: todayAppointment ? todaysQueue : [],
-    myPosition: todayAppointment?.position ?? null
-  });
-});
-
-if (fs.existsSync(DIST_DIR)) {
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(DIST_DIR, "index.html"));
-  });
-}
 
 // ✅ Handle React/Vite routing
 app.get("*", (req, res) => {

@@ -60,13 +60,33 @@ export const updateFirebaseStatus = async (appointmentId, patientId, status) => 
   }
 };
 
-export const syncAllToFirebase = async (patients, appointments) => {
+export const syncSettingsToFirebase = async (settings) => {
+  try {
+    await setDoc(doc(db, "app_settings", "global"), {
+      showPatientNames: settings.showPatientNames,
+      lastUpdated: new Date().toISOString()
+    }, { merge: true });
+  } catch (e) {
+    console.error("Firebase Settings Sync Error: ", e);
+  }
+};
+
+export const syncAllToFirebase = async (patients, appointments, settings) => {
   try {
     console.log("Starting full Firebase sync...");
     
     if (!db) {
       console.error("Firebase DB is not initialized. Check firebaseConfig.");
       throw new Error("Base de données Firebase non initialisée.");
+    }
+
+    // 0. Sync Settings
+    if (settings) {
+      console.log("Syncing settings...");
+      await setDoc(doc(db, "app_settings", "global"), {
+        showPatientNames: settings.showPatientNames ?? true,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
     }
 
     // 1. Sync all patients

@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { LayoutDashboard, LockKeyhole, ShieldCheck, Smartphone } from "lucide-react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { AdminDashboard } from "./components/AdminDashboard";
-import { PatientMobile } from "./components/PatientMobile";
-import { PatientApp } from "./PatientApp";
 import { useClinicData } from "./hooks/useClinicData";
 import { syncAppointmentToFirebase, updateFirebaseStatus, syncAllToFirebase } from "./firebase";
 
@@ -97,7 +95,9 @@ export default function App() {
     availableSlots,
     loading,
     error,
-    reload
+    reload,
+    updateInterval,
+    updateVisibility
   } = useClinicData();
 
   const [isCapacitor, setIsCapacitor] = useState(false);
@@ -150,14 +150,17 @@ export default function App() {
     window.localStorage.removeItem("ouldmatari-user");
   };
 
-  const updateInterval = async (appointmentInterval) => {
-    await fetch(`${API_URL}/settings`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appointmentInterval })
-    });
+  const onUpdateInterval = async (interval) => {
+    await updateInterval(interval);
     await refreshSlots(selectedDate);
-    await reload();
+    // Sync settings to Firebase
+    await syncSettingsToFirebase({ ...settings, appointmentInterval: interval });
+  };
+
+  const onUpdateVisibility = async (showPatientNames) => {
+    await updateVisibility(showPatientNames);
+    // Sync settings to Firebase
+    await syncSettingsToFirebase({ ...settings, showPatientNames });
   };
 
   const createPatient = async (payload) => {
@@ -258,7 +261,7 @@ export default function App() {
     <div className="app-shell">
       <Routes>
         <Route
-          path="/admin"
+          path="/"
           element={
             currentUser ? (
               <AdminDashboard
@@ -277,18 +280,17 @@ export default function App() {
                 onCreateAppointment={createAppointment}
                 onCreateUser={createUser}
                 onUpdateUser={updateUser}
-                onUpdateInterval={updateInterval}
+                onUpdateInterval={onUpdateInterval}
+                onUpdateVisibility={onUpdateVisibility}
                 onMarkStatus={markStatus}
-                onSyncAll={() => syncAllToFirebase(patients, appointments)}
+                onSyncAll={() => syncAllToFirebase(patients, appointments, settings)}
               />
             ) : (
               <LoginScreen onLogin={login} loginError={loginError} />
             )
           }
         />
-        <Route path="/patient" element={<PatientApp />} />
-        <Route path="/" element={<Navigate to={currentUser ? "/admin" : "/patient"} replace />} />
-        <Route path="*" element={<Navigate to={currentUser ? "/admin" : "/patient"} replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );

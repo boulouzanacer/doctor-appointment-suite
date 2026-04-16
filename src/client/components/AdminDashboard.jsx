@@ -1004,7 +1004,7 @@ function UsersSection({ users, currentUser, onCreateUser, onUpdateUser }) {
   );
 }
 
-function SettingsSection({ settings, onUpdateInterval, onSyncAll }) {
+function SettingsSection({ settings, onUpdateInterval, onSyncAll, onUpdateVisibility }) {
   const [syncing, setSyncAll] = useState(false);
 
   const handleSync = async () => {
@@ -1033,22 +1033,42 @@ function SettingsSection({ settings, onUpdateInterval, onSyncAll }) {
       <section className="card card-wide" style={{ paddingBottom: "32px", marginBottom: "24px" }}>
         <div className="card-header" style={{ marginBottom: "20px" }}>
           <div>
-            <p className="eyebrow">Synchronisation Cloud</p>
-            <h2>Firebase Firestore</h2>
+            <p className="eyebrow">Application Mobile Patient</p>
+            <h2>Contrôle de l&apos;interface</h2>
           </div>
         </div>
-        <div style={{ padding: "20px", background: "rgba(15, 118, 110, 0.05)", borderRadius: "20px", border: "1px dashed var(--primary)" }}>
-          <p style={{ fontSize: "0.9rem", color: "var(--text-soft)", marginBottom: "16px" }}>
-            Si les patients ne sont pas trouvés sur l&apos;application mobile, utilisez ce bouton pour forcer la synchronisation de tous les patients et rendez-vous du jour vers le Cloud.
-          </p>
-          <button 
-            className="button button-primary" 
-            onClick={handleSync}
-            disabled={syncing}
-          >
-            <ShieldCheck size={18} />
-            {syncing ? "Synchronisation en cours..." : "Synchroniser avec Firebase Cloud"}
-          </button>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+          <div style={{ padding: "20px", background: "rgba(15, 118, 110, 0.05)", borderRadius: "20px", border: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+              <div>
+                <p style={{ fontWeight: 600, color: "var(--text-bold)", margin: 0 }}>Noms des patients</p>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-soft)", margin: 0 }}>Afficher ou masquer les noms dans l&apos;app mobile</p>
+              </div>
+              <label className="switch">
+                <input 
+                  type="checkbox" 
+                  checked={settings?.showPatientNames !== false} 
+                  onChange={(e) => onUpdateVisibility(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+            </div>
+          </div>
+          
+          <div style={{ padding: "20px", background: "rgba(15, 118, 110, 0.05)", borderRadius: "20px", border: "1px dashed var(--primary)" }}>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-soft)", marginBottom: "12px" }}>
+              Forcer la synchronisation manuelle des données vers Firebase.
+            </p>
+            <button 
+              className="button button-primary" 
+              onClick={handleSync}
+              disabled={syncing}
+              style={{ width: "100%" }}
+            >
+              <ShieldCheck size={18} />
+              {syncing ? "Synchronisation..." : "Synchroniser maintenant"}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1149,6 +1169,7 @@ export function AdminDashboard(props) {
         settings={props.settings} 
         onUpdateInterval={props.onUpdateInterval} 
         onSyncAll={props.onSyncAll} 
+        onUpdateVisibility={props.onUpdateVisibility}
       />
     );
   }
