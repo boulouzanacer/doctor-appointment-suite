@@ -8,18 +8,28 @@ import 'package:intl/intl.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Notifications
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  // Initialize Notifications for Android (v17 style)
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+
+  try {
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    debugPrint("Notifications initialized");
+  } catch (e) {
+    debugPrint("Error initializing notifications: $e");
+  }
 
   debugPrint("--- Starting App Initialization ---");
-  
+
   try {
     await Firebase.initializeApp().timeout(
       const Duration(seconds: 10),
@@ -36,14 +46,14 @@ void main() async {
           projectId: "doctor-appointment-suite",
           storageBucket: "doctor-appointment-suite.firebasestorage.app",
           messagingSenderId: "342025821668",
-          appId: "1:342025821668:android:e2efc42bc75137842b7bf1"
+          appId: "1:342025821668:android:e2efc42bc75137842b7bf1",
         ),
       );
     } catch (e2) {
       debugPrint("Manual Firebase initialization failed: $e2");
     }
   }
-  
+
   runApp(const PatientApp());
 }
 
@@ -92,7 +102,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               padding: const EdgeInsets.all(24.0),
               child: Card(
                 elevation: 12,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(32.0),
                   child: Column(
@@ -104,12 +116,19 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                           color: const Color(0xFF0F766E).withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(LucideIcons.activity, size: 40, color: Color(0xFF0F766E)),
+                        child: const Icon(
+                          LucideIcons.activity,
+                          size: 40,
+                          color: Color(0xFF0F766E),
+                        ),
                       ),
                       const SizedBox(height: 20),
                       Text(
                         'Cabinet Médical',
-                        style: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.manrope(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -122,7 +141,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                         onPressed: () async {
                           final result = await Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+                            MaterialPageRoute(
+                              builder: (context) => const QRScannerScreen(),
+                            ),
                           );
                           if (result != null) {
                             setState(() => patientId = result);
@@ -134,7 +155,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                           backgroundColor: const Color(0xFF0F766E),
                           foregroundColor: Colors.white,
                           minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ],
@@ -180,7 +203,11 @@ class PatientStatusView extends StatefulWidget {
   final String patientId;
   final VoidCallback onLogout;
 
-  const PatientStatusView({super.key, required this.patientId, required this.onLogout});
+  const PatientStatusView({
+    super.key,
+    required this.patientId,
+    required this.onLogout,
+  });
 
   @override
   State<PatientStatusView> createState() => _PatientStatusViewState();
@@ -192,25 +219,37 @@ class _PatientStatusViewState extends State<PatientStatusView> {
 
   Future<void> _notifyArrival() async {
     if (_notificationSent) return;
-    
-    // Play sound
-    await _audioPlayer.play(AssetSource('sounds/notification.mp3'));
-    
-    // Show notification
-    const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'your_turn_channel',
-      'Votre tour',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-    );
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      'C\'est votre tour !',
-      'Veuillez vous diriger vers la salle de consultation.',
-      platformChannelSpecifics,
-    );
+
+    try {
+      await _audioPlayer.play(AssetSource('sounds/notification.mp3'));
+    } catch (e) {
+      debugPrint("Error playing sound: $e");
+    }
+
+    try {
+      // v17 style notification details
+      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+            'your_turn_channel',
+            'Votre tour',
+            channelDescription: 'Notifications pour votre tour de passage',
+            importance: Importance.max,
+            priority: Priority.high,
+            ticker: 'ticker',
+          );
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+      );
+
+      await flutterLocalNotificationsPlugin.show(
+        0,
+        'C\'est votre tour !',
+        'Veuillez vous diriger vers la salle de consultation.',
+        platformChannelSpecifics,
+      );
+    } catch (e) {
+      debugPrint("Error showing notification: $e");
+    }
 
     setState(() => _notificationSent = true);
   }
@@ -228,8 +267,16 @@ class _PatientStatusViewState extends State<PatientStatusView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
-        title: const Text('Mon Passage', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [IconButton(onPressed: widget.onLogout, icon: const Icon(LucideIcons.logOut))],
+        title: const Text(
+          'Mon Passage',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          IconButton(
+            onPressed: widget.onLogout,
+            icon: const Icon(LucideIcons.logOut),
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -238,8 +285,11 @@ class _PatientStatusViewState extends State<PatientStatusView> {
             .orderBy('time')
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          
+          if (snapshot.hasError)
+            return Center(child: Text('Erreur: ${snapshot.error}'));
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
+
           final queueDocs = snapshot.data!.docs;
           int myIndex = -1;
           Map<String, dynamic>? myData;
@@ -259,16 +309,18 @@ class _PatientStatusViewState extends State<PatientStatusView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Aucun rendez-vous aujourd\'hui'),
-                  TextButton(onPressed: widget.onLogout, child: const Text('Retour'))
+                  TextButton(
+                    onPressed: widget.onLogout,
+                    child: const Text('Retour'),
+                  ),
                 ],
               ),
             );
           }
 
           final int position = myIndex + 1;
-          final int remaining = myIndex; // Number of people before me
+          final int remaining = myIndex;
 
-          // Trigger notification if position is 1
           if (position == 1 && myData?['status'] != 'treated') {
             _notifyArrival();
           }
@@ -276,18 +328,17 @@ class _PatientStatusViewState extends State<PatientStatusView> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Position Card
               _buildMainPositionCard(position, remaining, myData?['status']),
               const SizedBox(height: 20),
-              
-              // Queue List
-              const Text('File d\'attente du jour', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'File d\'attente du jour',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 12),
               ...queueDocs.asMap().entries.map((entry) {
                 final int idx = entry.key;
                 final data = entry.value.data() as Map<String, dynamic>;
                 final bool isMe = data['patientId'] == widget.patientId;
-                
                 return _buildQueueItem(idx + 1, data, isMe);
               }),
             ],
@@ -303,12 +354,14 @@ class _PatientStatusViewState extends State<PatientStatusView> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isNext 
-            ? [const Color(0xFF0D9488), const Color(0xFF0F766E)]
-            : [Colors.white, Colors.white],
+          colors: isNext
+              ? [const Color(0xFF0D9488), const Color(0xFF0F766E)]
+              : [Colors.white, Colors.white],
         ),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        ],
       ),
       child: Column(
         children: [
@@ -317,28 +370,34 @@ class _PatientStatusViewState extends State<PatientStatusView> {
             style: TextStyle(
               color: isNext ? Colors.white70 : Colors.grey[600],
               fontSize: 16,
-              fontWeight: FontWeight.w600
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             '$position',
             style: TextStyle(
-              fontSize: 72, 
-              fontWeight: FontWeight.w800, 
-              color: isNext ? Colors.white : const Color(0xFF0F766E)
+              fontSize: 72,
+              fontWeight: FontWeight.w800,
+              color: isNext ? Colors.white : const Color(0xFF0F766E),
             ),
           ),
           const SizedBox(height: 8),
           if (!isNext)
             Text(
               '$remaining patient(s) avant vous',
-              style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
             ),
           if (isNext)
             const Text(
               'Le docteur vous attend',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           const SizedBox(height: 16),
           _StatusBadge(status: status ?? 'waiting', onDark: isNext),
@@ -349,12 +408,15 @@ class _PatientStatusViewState extends State<PatientStatusView> {
 
   Widget _buildQueueItem(int pos, Map<String, dynamic> data, bool isMe) {
     return Container(
+      key: ValueKey(data['id'] ?? pos),
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isMe ? const Color(0xFF0F766E).withOpacity(0.05) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: isMe ? Border.all(color: const Color(0xFF0F766E), width: 2) : null,
+        border: isMe
+            ? Border.all(color: const Color(0xFF0F766E), width: 2)
+            : null,
       ),
       child: Row(
         children: [
@@ -370,7 +432,7 @@ class _PatientStatusViewState extends State<PatientStatusView> {
                 '$pos',
                 style: TextStyle(
                   color: isMe ? Colors.white : Colors.grey[600],
-                  fontWeight: FontWeight.bold
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -381,13 +443,18 @@ class _PatientStatusViewState extends State<PatientStatusView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isMe ? 'Vous' : '${data['firstName']} ${data['lastName'][0]}.',
+                  isMe
+                      ? 'Vous'
+                      : '${data['firstName']} ${data['lastName'][0]}.',
                   style: TextStyle(
                     fontWeight: isMe ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 15
+                    fontSize: 15,
                   ),
                 ),
-                Text(data['time'], style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                Text(
+                  data['time'] ?? '--:--',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                ),
               ],
             ),
           ),
@@ -402,30 +469,38 @@ class _StatusBadge extends StatelessWidget {
   final String status;
   final bool compact;
   final bool onDark;
-  
-  const _StatusBadge({required this.status, this.compact = false, this.onDark = false});
+
+  const _StatusBadge({
+    required this.status,
+    this.compact = false,
+    this.onDark = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final styles = {
-      'waiting': (color: Colors.orange, label: 'Attente'),
-      'confirmed': (color: Colors.blue, label: 'Confirmé'),
-      'treated': (color: Colors.green, label: 'Terminé'),
-      'cancelled': (color: Colors.red, label: 'Annulé'),
-    }[status] ?? (color: Colors.grey, label: status);
+    final styles =
+        {
+          'waiting': (color: Colors.orange, label: 'Attente'),
+          'confirmed': (color: Colors.blue, label: 'Confirmé'),
+          'treated': (color: Colors.green, label: 'Terminé'),
+          'cancelled': (color: Colors.red, label: 'Annulé'),
+        }[status] ??
+        (color: Colors.grey, label: status);
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12, vertical: 4),
       decoration: BoxDecoration(
-        color: onDark ? Colors.white.withOpacity(0.2) : styles.color.withOpacity(0.1),
+        color: onDark
+            ? Colors.white.withOpacity(0.2)
+            : styles.color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         styles.label,
         style: TextStyle(
-          color: onDark ? Colors.white : styles.color, 
-          fontWeight: FontWeight.bold, 
-          fontSize: compact ? 10 : 12
+          color: onDark ? Colors.white : styles.color,
+          fontWeight: FontWeight.bold,
+          fontSize: compact ? 10 : 12,
         ),
       ),
     );
