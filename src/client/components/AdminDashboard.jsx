@@ -1004,9 +1004,40 @@ function UsersSection({ users, currentUser, onCreateUser, onUpdateUser }) {
   );
 }
 
-function SettingsSection({ settings, onUpdateInterval }) {
+function SettingsSection({ settings, onUpdateInterval, onSyncAll }) {
+  const [syncing, setSyncAll] = useState(false);
+
+  const handleSync = async () => {
+    setSyncAll(true);
+    await onSyncAll();
+    setSyncAll(false);
+    alert("Synchronisation Firebase terminée !");
+  };
+
   return (
     <div className="admin-content-grid">
+      <section className="card card-wide" style={{ paddingBottom: "32px", marginBottom: "24px" }}>
+        <div className="card-header" style={{ marginBottom: "20px" }}>
+          <div>
+            <p className="eyebrow">Synchronisation Cloud</p>
+            <h2>Firebase Firestore</h2>
+          </div>
+        </div>
+        <div style={{ padding: "20px", background: "rgba(15, 118, 110, 0.05)", borderRadius: "20px", border: "1px dashed var(--primary)" }}>
+          <p style={{ fontSize: "0.9rem", color: "var(--text-soft)", marginBottom: "16px" }}>
+            Si les patients ne sont pas trouvés sur l&apos;application mobile, utilisez ce bouton pour forcer la synchronisation de tous les patients et rendez-vous du jour vers le Cloud.
+          </p>
+          <button 
+            className="button button-primary" 
+            onClick={handleSync}
+            disabled={syncing}
+          >
+            <ShieldCheck size={18} />
+            {syncing ? "Synchronisation en cours..." : "Synchroniser avec Firebase Cloud"}
+          </button>
+        </div>
+      </section>
+
       <section className="card card-wide" style={{ paddingBottom: "32px" }}>
         <div className="card-header" style={{ marginBottom: "20px" }}>
           <div>
@@ -1043,6 +1074,13 @@ function SettingsSection({ settings, onUpdateInterval }) {
 
 export function AdminDashboard(props) {
   const [currentSection, setCurrentSection] = useState("dashboard");
+
+  // Automatically sync to Firebase on load to ensure mobile app has data
+  useEffect(() => {
+    if (props.onSyncAll) {
+      props.onSyncAll();
+    }
+  }, []);
 
   let sectionContent = null;
 
@@ -1093,7 +1131,11 @@ export function AdminDashboard(props) {
 
   if (currentSection === "settings") {
     sectionContent = (
-      <SettingsSection settings={props.settings} onUpdateInterval={props.onUpdateInterval} />
+      <SettingsSection 
+        settings={props.settings} 
+        onUpdateInterval={props.onUpdateInterval} 
+        onSyncAll={props.onSyncAll} 
+      />
     );
   }
 

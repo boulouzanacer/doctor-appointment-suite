@@ -59,3 +59,50 @@ export const updateFirebaseStatus = async (appointmentId, patientId, status) => 
     console.error("Firebase Update Error: ", e);
   }
 };
+
+export const syncAllToFirebase = async (patients, appointments) => {
+  try {
+    console.log("Starting full Firebase sync...");
+    
+    // 1. Sync all patients
+    for (const patient of patients) {
+      await setDoc(doc(db, "patients", patient.id), {
+        id: patient.id,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+    }
+
+    // 2. Sync all today's appointments to queue
+    const today = new Date().toISOString().slice(0, 10);
+    const todayAppts = appointments.filter(a => a.date === today);
+    
+    for (const appt of todayAppts) {
+      const patient = patients.find(p => p.id === appt.patientId);
+      if (patient) {
+        await setDoc(doc(db, "queue", appt.id), {
+          id: appt.id,
+          patientId: patient.id,
+          firstName: patient.firstName,
+          lastName: patient.lastName,
+          date: appt.date,
+          time: appt.time,
+          status: appt.status,
+          lastUpdated: new Date().toISOString()
+        });
+        
+        // Also update the status on the patient record
+        await updateDoc(doc(db, "patients", patient.id), {
+          status: appt.status
+        });
+      }
+    }
+    
+    console.log("Firebase sync completed!");
+    return true;
+  } catch (e) {
+    console.error("Full Sync Error: ", e);
+    return false;
+  }
+};

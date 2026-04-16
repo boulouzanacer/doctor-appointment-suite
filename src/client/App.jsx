@@ -5,7 +5,7 @@ import { AdminDashboard } from "./components/AdminDashboard";
 import { PatientMobile } from "./components/PatientMobile";
 import { PatientApp } from "./PatientApp";
 import { useClinicData } from "./hooks/useClinicData";
-import { syncAppointmentToFirebase, updateFirebaseStatus } from "./firebase";
+import { syncAppointmentToFirebase, updateFirebaseStatus, syncAllToFirebase } from "./firebase";
 
 function LoginScreen({ onLogin, loginError }) {
   const [credentials, setCredentials] = useState({
@@ -279,6 +279,7 @@ export default function App() {
                 onUpdateUser={updateUser}
                 onUpdateInterval={updateInterval}
                 onMarkStatus={markStatus}
+                onSyncAll={() => syncAllToFirebase(patients, appointments)}
               />
             ) : (
               <LoginScreen onLogin={login} loginError={loginError} />
