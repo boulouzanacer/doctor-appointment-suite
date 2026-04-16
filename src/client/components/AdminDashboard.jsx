@@ -1011,10 +1011,18 @@ function SettingsSection({ settings, onUpdateInterval, onSyncAll }) {
     try {
       setSyncAll(true);
       await onSyncAll();
-      alert("Synchronisation Firebase terminée !");
+      alert("✅ Synchronisation Firebase Cloud terminée avec succès !");
     } catch (error) {
       console.error("Sync Error:", error);
-      alert("Erreur lors de la synchronisation. Vérifiez votre connexion.");
+      let msg = "Erreur de synchronisation.";
+      if (error.code === 'permission-denied') {
+        msg = "Accès refusé par Firebase. Vérifiez vos règles (Cloud Firestore Rules).";
+      } else if (error.message && error.message.includes('not initialized')) {
+        msg = "Firebase n'est pas initialisé. Vérifiez votre config dans firebase.js.";
+      } else {
+        msg = `Détail de l'erreur: ${error.message || error.toString()}`;
+      }
+      alert(`❌ ${msg}\n\nVérifiez la console (F12) pour plus de détails.`);
     } finally {
       setSyncAll(false);
     }

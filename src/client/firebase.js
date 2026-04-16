@@ -64,9 +64,13 @@ export const syncAllToFirebase = async (patients, appointments) => {
   try {
     console.log("Starting full Firebase sync...");
     
-    if (!db) throw new Error("Firebase database not initialized");
+    if (!db) {
+      console.error("Firebase DB is not initialized. Check firebaseConfig.");
+      throw new Error("Base de données Firebase non initialisée.");
+    }
 
-    // 1. Sync all patients in parallel (limited chunks to avoid overloading)
+    // 1. Sync all patients
+    console.log(`Syncing ${patients.length} patients...`);
     const patientPromises = patients.map(patient => 
       setDoc(doc(db, "patients", patient.id), {
         id: patient.id,
@@ -76,15 +80,16 @@ export const syncAllToFirebase = async (patients, appointments) => {
       }, { merge: true })
     );
     await Promise.all(patientPromises);
+    console.log("Patients synced!");
 
-    // 2. Sync all today's appointments to queue
+    // 2. Sync today's appointments
     const today = new Date().toISOString().slice(0, 10);
     const todayAppts = appointments.filter(a => a.date === today);
+    console.log(`Syncing ${todayAppts.length} today's appointments to queue...`);
     
     const queuePromises = todayAppts.map(async (appt) => {
       const patient = patients.find(p => p.id === appt.patientId);
       if (patient) {
-        // Sync to daily queue
         await setDoc(doc(db, "queue", appt.id), {
           id: appt.id,
           patientId: patient.id,
@@ -96,7 +101,6 @@ export const syncAllToFirebase = async (patients, appointments) => {
           lastUpdated: new Date().toISOString()
         });
         
-        // Also update the status on the patient record
         await setDoc(doc(db, "patients", patient.id), {
           status: appt.status
         }, { merge: true });
@@ -104,11 +108,13 @@ export const syncAllToFirebase = async (patients, appointments) => {
     });
     
     await Promise.all(queuePromises);
-    
-    console.log("Firebase sync completed successfully!");
+    console.log("Queue sync completed successfully!");
     return true;
   } catch (e) {
-    console.error("Full Sync Error: ", e);
-    throw e; // Rethrow to let UI handle it
+    console.error("Firebase Full Sync Failed:", e);
+    // Include the Firebase error code for easier diagnosis
+    const errorWithCode = new Error(e.message || "Erreur de connexion Firebase.");
+    errorWithCode.code = e.code;
+    throw errorWithCode;
   }
 };
