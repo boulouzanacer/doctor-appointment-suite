@@ -1008,10 +1008,16 @@ function SettingsSection({ settings, onUpdateInterval, onSyncAll }) {
   const [syncing, setSyncAll] = useState(false);
 
   const handleSync = async () => {
-    setSyncAll(true);
-    await onSyncAll();
-    setSyncAll(false);
-    alert("Synchronisation Firebase terminée !");
+    try {
+      setSyncAll(true);
+      await onSyncAll();
+      alert("Synchronisation Firebase terminée !");
+    } catch (error) {
+      console.error("Sync Error:", error);
+      alert("Erreur lors de la synchronisation. Vérifiez votre connexion.");
+    } finally {
+      setSyncAll(false);
+    }
   };
 
   return (

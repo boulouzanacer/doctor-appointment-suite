@@ -64,23 +64,27 @@ export const syncAllToFirebase = async (patients, appointments) => {
   try {
     console.log("Starting full Firebase sync...");
     
-    // 1. Sync all patients
-    for (const patient of patients) {
-      await setDoc(doc(db, "patients", patient.id), {
+    if (!db) throw new Error("Firebase database not initialized");
+
+    // 1. Sync all patients in parallel (limited chunks to avoid overloading)
+    const patientPromises = patients.map(patient => 
+      setDoc(doc(db, "patients", patient.id), {
         id: patient.id,
         firstName: patient.firstName,
         lastName: patient.lastName,
         lastUpdated: new Date().toISOString()
-      }, { merge: true });
-    }
+      }, { merge: true })
+    );
+    await Promise.all(patientPromises);
 
     // 2. Sync all today's appointments to queue
     const today = new Date().toISOString().slice(0, 10);
     const todayAppts = appointments.filter(a => a.date === today);
     
-    for (const appt of todayAppts) {
+    const queuePromises = todayAppts.map(async (appt) => {
       const patient = patients.find(p => p.id === appt.patientId);
       if (patient) {
+        // Sync to daily queue
         await setDoc(doc(db, "queue", appt.id), {
           id: appt.id,
           patientId: patient.id,
@@ -93,16 +97,18 @@ export const syncAllToFirebase = async (patients, appointments) => {
         });
         
         // Also update the status on the patient record
-        await updateDoc(doc(db, "patients", patient.id), {
+        await setDoc(doc(db, "patients", patient.id), {
           status: appt.status
-        });
+        }, { merge: true });
       }
-    }
+    });
     
-    console.log("Firebase sync completed!");
+    await Promise.all(queuePromises);
+    
+    console.log("Firebase sync completed successfully!");
     return true;
   } catch (e) {
     console.error("Full Sync Error: ", e);
-    return false;
+    throw e; // Rethrow to let UI handle it
   }
 };
