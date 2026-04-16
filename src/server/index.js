@@ -298,7 +298,7 @@ app.post("/api/appointments", (req, res) => {
     date,
     time,
     duration: Number(db.settings.appointmentInterval),
-    status: "confirmed"
+    status: "waiting"
   };
 
   const patient = db.patients.find(p => p.id === patientId);
