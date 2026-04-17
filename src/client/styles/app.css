@@ -1060,8 +1060,75 @@ input:checked + .slider:before {
 }
 
 .button-danger:hover {
-  background: rgba(220, 38, 38, 0.18);
+  background: var(--danger);
+  color: white;
   transform: translateY(-1px);
+}
+
+.modal-danger {
+  border: 2px solid rgba(220, 38, 38, 0.2);
+}
+
+.modal-danger .modal-header h2 {
+  color: var(--danger);
+}
+
+.alert-banner {
+  background: rgba(220, 38, 38, 0.05);
+  border: 1px solid rgba(220, 38, 38, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.alert-banner-icon {
+  color: var(--danger);
+  flex-shrink: 0;
+}
+
+.alert-banner-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.confirmation-input-group {
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.confirmation-input-group label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.confirmation-input-group input {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.confirmation-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* Animations */
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-content {
+  animation: modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .queue-grid,

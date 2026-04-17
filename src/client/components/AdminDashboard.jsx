@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   CalendarDays,
   Clock3,
   Edit,
@@ -225,6 +226,9 @@ function DashboardSection({ settings, patients, appointments, queueToday, users,
 function PatientsSection({ patients, onCreatePatient, onDeletePatient }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patientForm, setPatientForm] = useState({
     firstName: "",
@@ -248,14 +252,17 @@ function PatientsSection({ patients, onCreatePatient, onDeletePatient }) {
     }, 100);
   };
 
-  const handleDelete = (patient) => {
-    const fullName = formatPatientName(patient);
-    const confirmName = prompt(`Attention : Cela supprimera définitivement le patient "${fullName}" et tous ses rendez-vous.\n\nPour confirmer, veuillez saisir le nom complet du patient :`);
-    
-    if (confirmName === fullName) {
-      onDeletePatient(patient.id);
-    } else if (confirmName !== null) {
-      alert("Le nom saisi ne correspond pas. Suppression annulée.");
+  const openDeleteModal = (patient) => {
+    setPatientToDelete(patient);
+    setDeleteConfirmName("");
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (patientToDelete && deleteConfirmName === formatPatientName(patientToDelete)) {
+      onDeletePatient(patientToDelete.id);
+      setIsDeleteModalOpen(false);
+      setPatientToDelete(null);
     }
   };
 
@@ -322,7 +329,7 @@ function PatientsSection({ patients, onCreatePatient, onDeletePatient }) {
                           className="icon-button"
                           style={{ background: "rgba(220, 38, 38, 0.1)", color: "var(--danger)" }}
                           title="Supprimer le patient"
-                          onClick={() => handleDelete(patient)}
+                          onClick={() => openDeleteModal(patient)}
                         >
                           <X size={18} />
                         </button>
@@ -337,6 +344,55 @@ function PatientsSection({ patients, onCreatePatient, onDeletePatient }) {
           )}
         </div>
       </section>
+
+      {/* Modal Suppression Patient (Professionnel) */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirmer la suppression"
+      >
+        <div className="modal-danger">
+          <div className="alert-banner">
+            <div className="alert-banner-icon">
+              <AlertTriangle size={24} />
+            </div>
+            <div className="alert-banner-content">
+              <p>
+                Cette action est irréversible. Toutes les données associées à{" "}
+                <strong>{patientToDelete ? formatPatientName(patientToDelete) : ""}</strong>{" "}
+                (rendez-vous, historique) seront définitivement supprimées.
+              </p>
+            </div>
+          </div>
+
+          <div className="confirmation-input-group">
+            <label>Saisissez le nom complet du patient pour confirmer :</label>
+            <input
+              className="input"
+              value={deleteConfirmName}
+              placeholder={patientToDelete ? formatPatientName(patientToDelete) : ""}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className="confirmation-actions">
+            <button
+              className="button button-soft"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Annuler
+            </button>
+            <button
+              className="button button-danger"
+              disabled={!patientToDelete || deleteConfirmName !== formatPatientName(patientToDelete)}
+              onClick={confirmDelete}
+            >
+              Supprimer définitivement
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Printable Area */}
       {selectedPatient && (
