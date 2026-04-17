@@ -3,7 +3,7 @@ import { LayoutDashboard, LockKeyhole, ShieldCheck, Smartphone } from "lucide-re
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { useClinicData } from "./hooks/useClinicData";
-import { syncAppointmentToFirebase, updateFirebaseStatus, syncAllToFirebase, syncUserToFirebase } from "./firebase";
+import { syncAppointmentToFirebase, updateFirebaseStatus, syncAllToFirebase, syncUserToFirebase, deletePatientFromFirebase } from "./firebase";
 
 function LoginScreen({ onLogin, loginError }) {
   const [credentials, setCredentials] = useState({
@@ -172,6 +172,24 @@ export default function App() {
     await reload();
   };
 
+  const deletePatient = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/patients/${id}`, {
+        method: "DELETE"
+      });
+      if (response.ok) {
+        await deletePatientFromFirebase(id);
+        await reload();
+      } else {
+        const data = await response.json();
+        alert(data.message || "Erreur lors de la suppression du patient.");
+      }
+    } catch (err) {
+      console.error("Delete patient error:", err);
+      alert("Une erreur est survenue lors de la suppression.");
+    }
+  };
+
   const createAppointment = async (payload) => {
     const response = await fetch(`${API_URL}/appointments`, {
       method: "POST",
@@ -288,6 +306,7 @@ export default function App() {
                 availableSlots={slotsForDate}
                 onRefreshSlots={refreshSlots}
                 onCreatePatient={createPatient}
+                onDeletePatient={deletePatient}
                 onCreateAppointment={createAppointment}
                 onCreateUser={createUser}
                 onUpdateUser={updateUser}

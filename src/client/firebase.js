@@ -162,3 +162,22 @@ export const syncUserToFirebase = async (user) => {
     console.error("Firebase User Sync Error: ", e);
   }
 };
+
+export const deletePatientFromFirebase = async (patientId) => {
+  try {
+    console.log(`Deleting patient ${patientId} and their data from Firebase...`);
+    
+    // 1. Delete patient document
+    await deleteDoc(doc(db, "patients", patientId));
+
+    // 2. Delete all queue items for this patient
+    const q = query(collection(db, "queue"), where("patientId", "==", patientId));
+    const querySnapshot = await getDocs(q);
+    const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+    
+    console.log(`Successfully deleted patient ${patientId} data from Firebase.`);
+  } catch (e) {
+    console.error("Firebase Delete Patient Error: ", e);
+  }
+};

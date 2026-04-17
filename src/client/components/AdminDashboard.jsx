@@ -222,7 +222,7 @@ function DashboardSection({ settings, patients, appointments, queueToday, users,
   );
 }
 
-function PatientsSection({ patients, onCreatePatient }) {
+function PatientsSection({ patients, onCreatePatient, onDeletePatient }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -246,6 +246,17 @@ function PatientsSection({ patients, onCreatePatient }) {
     setTimeout(() => {
       window.print();
     }, 100);
+  };
+
+  const handleDelete = (patient) => {
+    const fullName = formatPatientName(patient);
+    const confirmName = prompt(`Attention : Cela supprimera définitivement le patient "${fullName}" et tous ses rendez-vous.\n\nPour confirmer, veuillez saisir le nom complet du patient :`);
+    
+    if (confirmName === fullName) {
+      onDeletePatient(patient.id);
+    } else if (confirmName !== null) {
+      alert("Le nom saisi ne correspond pas. Suppression annulée.");
+    }
   };
 
   return (
@@ -289,23 +300,33 @@ function PatientsSection({ patients, onCreatePatient }) {
                         {patient.nin || "N/A"}
                       </code>
                     </td>
-                    <td>{patient.phone}</td>
-                    <td>{patient.birthDate}</td>
+                    <td>{patient.phone || "N/A"}</td>
+                    <td>{patient.birthDate || "N/A"}</td>
                     <td>
-                      <button
-                        className="icon-button"
-                        title="Voir QR Code"
-                        onClick={() => handleShowQR(patient)}
-                      >
-                        <QrCode size={18} />
-                      </button>
-                      <button
-                        className="icon-button icon-button-print"
-                        title="Imprimer ticket"
-                        onClick={() => handlePrintQR(patient)}
-                      >
-                        <Printer size={18} />
-                      </button>
+                      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <button
+                          className="icon-button"
+                          title="Voir QR Code"
+                          onClick={() => handleShowQR(patient)}
+                        >
+                          <QrCode size={18} />
+                        </button>
+                        <button
+                          className="icon-button icon-button-print"
+                          title="Imprimer ticket"
+                          onClick={() => handlePrintQR(patient)}
+                        >
+                          <Printer size={18} />
+                        </button>
+                        <button
+                          className="icon-button"
+                          style={{ background: "rgba(220, 38, 38, 0.1)", color: "var(--danger)" }}
+                          title="Supprimer le patient"
+                          onClick={() => handleDelete(patient)}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1133,7 +1154,11 @@ export function AdminDashboard(props) {
 
   if (currentSection === "patients") {
     sectionContent = (
-      <PatientsSection patients={props.patients} onCreatePatient={props.onCreatePatient} />
+      <PatientsSection
+        patients={props.patients}
+        onCreatePatient={props.onCreatePatient}
+        onDeletePatient={props.onDeletePatient}
+      />
     );
   }
 

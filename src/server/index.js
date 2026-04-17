@@ -290,11 +290,31 @@ app.post("/api/patients", (req, res) => {
     lastName: req.body.lastName,
     phone: req.body.phone,
     birthDate: req.body.birthDate,
+    nin: req.body.nin,
     note: req.body.note || ""
   };
   db.patients.unshift(patient);
   writeDb(db);
   res.status(201).json(patient);
+});
+
+app.delete("/api/patients/:id", (req, res) => {
+  const db = readDb();
+  const patientId = req.params.id;
+  
+  // 1. Remove appointments associated with this patient
+  db.appointments = db.appointments.filter(a => a.patientId !== patientId);
+  
+  // 2. Remove the patient
+  const initialLength = db.patients.length;
+  db.patients = db.patients.filter(p => p.id !== patientId);
+  
+  if (db.patients.length === initialLength) {
+    return res.status(404).json({ message: "Patient introuvable." });
+  }
+  
+  writeDb(db);
+  res.json({ message: "Patient et ses rendez-vous supprimés avec succès." });
 });
 
 app.patch("/api/settings", (req, res) => {
