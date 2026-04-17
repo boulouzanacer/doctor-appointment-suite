@@ -3,6 +3,20 @@ import cors from "cors";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs, doc, getDoc } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCTvGSJwG06gnKK-d9sgtYX8oGgxCWhfqc",
+  authDomain: "doctor-appointment-suite.firebaseapp.com",
+  projectId: "doctor-appointment-suite",
+  storageBucket: "doctor-appointment-suite.firebasestorage.app",
+  messagingSenderId: "342025821668",
+  appId: "1:342025821668:web:e2efc42bc75137842b7bf1"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db_firebase = getFirestore(firebaseApp);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,6 +133,72 @@ const readDb = () => {
 
 const writeDb = (db) => {
   fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
+};
+
+const pullFromFirebase = async () => {
+  console.log("📥 Pulling data from Firebase...");
+  try {
+    const db = readDb();
+    
+    // 1. Pull Settings
+    const settingsSnap = await getDoc(doc(db_firebase, "app_settings", "global"));
+    if (settingsSnap.exists()) {
+      db.settings = { ...db.settings, ...settingsSnap.data() };
+    }
+
+    // 2. Pull Patients
+    const patientsSnap = await getDocs(collection(db_firebase, "patients"));
+    const firebasePatients = patientsSnap.docs.map(doc => doc.data());
+    if (firebasePatients.length > 0) {
+      // Merge: priority to Firebase
+      const mergedPatients = [...db.patients];
+      firebasePatients.forEach(p => {
+        const idx = mergedPatients.findIndex(mp => mp.id === p.id);
+        if (idx !== -1) mergedPatients[idx] = { ...mergedPatients[idx], ...p };
+        else mergedPatients.unshift(p);
+      });
+      db.patients = mergedPatients;
+    }
+
+    // 3. Pull Users
+    const usersSnap = await getDocs(collection(db_firebase, "users"));
+    const firebaseUsers = usersSnap.docs.map(doc => doc.data());
+    if (firebaseUsers.length > 0) {
+      const mergedUsers = [...db.users];
+      firebaseUsers.forEach(u => {
+        const idx = mergedUsers.findIndex(mu => mu.id === u.id);
+        if (idx !== -1) mergedUsers[idx] = { ...mergedUsers[idx], ...u };
+        else mergedUsers.unshift(u);
+      });
+      db.users = mergedUsers;
+    }
+
+    // 4. Pull Queue (Appointments)
+    const queueSnap = await getDocs(collection(db_firebase, "queue"));
+    const firebaseQueue = queueSnap.docs.map(doc => doc.data());
+    if (firebaseQueue.length > 0) {
+      const mergedAppointments = [...db.appointments];
+      firebaseQueue.forEach(q => {
+        const idx = mergedAppointments.findIndex(ma => ma.id === q.id);
+        const apptData = {
+          id: q.id,
+          patientId: q.patientId,
+          date: q.date,
+          time: q.time,
+          status: q.status,
+          duration: db.settings.appointmentInterval || 30
+        };
+        if (idx !== -1) mergedAppointments[idx] = apptData;
+        else mergedAppointments.push(apptData);
+      });
+      db.appointments = mergedAppointments;
+    }
+
+    writeDb(db);
+    console.log("✅ Data successfully pulled and merged from Firebase.");
+  } catch (error) {
+    console.error("❌ Error pulling from Firebase:", error);
+  }
 };
 
 const emitters = new Set();
@@ -341,7 +421,8 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../../build/index.html"));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   ensureDataFile();
+  await pullFromFirebase();
   console.log(`DoctorFlow API running on http://localhost:${PORT}`);
 });

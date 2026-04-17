@@ -3,7 +3,7 @@ import { LayoutDashboard, LockKeyhole, ShieldCheck, Smartphone } from "lucide-re
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { useClinicData } from "./hooks/useClinicData";
-import { syncAppointmentToFirebase, updateFirebaseStatus, syncAllToFirebase } from "./firebase";
+import { syncAppointmentToFirebase, updateFirebaseStatus, syncAllToFirebase, syncUserToFirebase } from "./firebase";
 
 function LoginScreen({ onLogin, loginError }) {
   const [credentials, setCredentials] = useState({
@@ -210,6 +210,11 @@ export default function App() {
       return;
     }
 
+    // Sync to Firebase
+    if (data) {
+      await syncUserToFirebase(data);
+    }
+
     await reload();
   };
 
@@ -227,6 +232,12 @@ export default function App() {
       const data = await response.json();
       alert(data.message || "Impossible de modifier l'utilisateur.");
       return;
+    }
+
+    const data = await response.json();
+    // Sync to Firebase
+    if (data) {
+      await syncUserToFirebase(data);
     }
 
     await reload();
@@ -283,7 +294,7 @@ export default function App() {
                 onUpdateInterval={onUpdateInterval}
                 onUpdateVisibility={onUpdateVisibility}
                 onMarkStatus={markStatus}
-                onSyncAll={() => syncAllToFirebase(patients, appointments, settings)}
+                onSyncAll={() => syncAllToFirebase(patients, appointments, settings, users)}
               />
             ) : (
               <LoginScreen onLogin={login} loginError={loginError} />

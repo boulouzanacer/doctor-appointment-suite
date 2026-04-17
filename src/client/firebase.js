@@ -71,7 +71,7 @@ export const syncSettingsToFirebase = async (settings) => {
   }
 };
 
-export const syncAllToFirebase = async (patients, appointments, settings) => {
+export const syncAllToFirebase = async (patients, appointments, settings, users) => {
   try {
     console.log("Starting full Firebase sync...");
     
@@ -102,7 +102,20 @@ export const syncAllToFirebase = async (patients, appointments, settings) => {
     await Promise.all(patientPromises);
     console.log("Patients synced!");
 
-    // 2. Sync today's appointments
+    // 2. Sync all users
+    if (users && users.length > 0) {
+      console.log(`Syncing ${users.length} users...`);
+      const userPromises = users.map(user => 
+        setDoc(doc(db, "users", user.id), {
+          ...user,
+          lastUpdated: new Date().toISOString()
+        }, { merge: true })
+      );
+      await Promise.all(userPromises);
+      console.log("Users synced!");
+    }
+
+    // 3. Sync today's appointments
     const today = new Date().toISOString().slice(0, 10);
     const todayAppts = appointments.filter(a => a.date === today);
     console.log(`Syncing ${todayAppts.length} today's appointments to queue...`);
@@ -136,5 +149,16 @@ export const syncAllToFirebase = async (patients, appointments, settings) => {
     const errorWithCode = new Error(e.message || "Erreur de connexion Firebase.");
     errorWithCode.code = e.code;
     throw errorWithCode;
+  }
+};
+
+export const syncUserToFirebase = async (user) => {
+  try {
+    await setDoc(doc(db, "users", user.id), {
+      ...user,
+      lastUpdated: new Date().toISOString()
+    }, { merge: true });
+  } catch (e) {
+    console.error("Firebase User Sync Error: ", e);
   }
 };
